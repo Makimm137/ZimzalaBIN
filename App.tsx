@@ -122,6 +122,12 @@ const App: React.FC = () => {
           quantity: item.quantity,
           purchase_date: item.purchaseDate,
           notes: item.notes,
+          sold_price: item.soldPrice,
+          sold_quantity: item.soldQuantity,
+          deposit_amount: item.depositAmount,
+          final_payment_amount: item.finalPaymentAmount,
+          payment_status: item.paymentStatus,
+          source_type: item.sourceType,
           is_pinned: item.isPinned,
           is_reminder_enabled: item.isReminderEnabled
         });
@@ -217,6 +223,7 @@ const App: React.FC = () => {
               onNavigateToHome={() => setCurrentTab('home')}
               onNavigateToIPList={() => setCurrentTab('ip-list')}
               onUpdateCollection={setCollection}
+              onSave={addItem} // <--- [新增] 就是在这里加一行
             />
           </div>
         );
