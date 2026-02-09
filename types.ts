@@ -13,10 +13,10 @@ export enum PaymentStatus {
 }
 
 export enum SourceType {
-  ANIME = '动漫',
-  KPOP = 'KPOP',
-  JPOP = 'JPOP',
   WESTERN = '欧美',
+  KPOP = 'KPOP',
+  ANIME = '动漫',
+  JPOP = 'JPOP',
   GAME = '游戏',
   OTHER = '其他'
 }
