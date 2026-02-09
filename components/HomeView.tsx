@@ -135,7 +135,7 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
         </div>
 
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-          {['全部', ItemStatus.OWNED, ItemStatus.TRANSIT, ItemStatus.WISHLIST].map(status => (
+          {['全部',ItemStatus.OWNED, ItemStatus.TRANSIT,ItemStatus.RESERVED,ItemStatus.SOLD, ItemStatus.WISHLIST].map(status => (
             <button
               key={status}
               onClick={() => setActiveStatus(status)}
