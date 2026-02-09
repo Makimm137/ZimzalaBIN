@@ -1,0 +1,7 @@
+{
+  "name": "稳定版 求求你别再买了",
+  "description": "A comprehensive collection management and analytics app for ACG merchandise collectors, featuring investment tracking, discovery feeds, and detailed statistics.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
