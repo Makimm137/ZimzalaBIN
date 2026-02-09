@@ -56,7 +56,9 @@ const App: React.FC = () => {
             imageUrl: it.image_url,
             isPinned: it.is_pinned,
             isReminderEnabled: it.is_reminder_enabled,
-            purchaseDate: it.purchase_date
+            purchaseDate: it.purchase_date,
+            soldPrice: it.sold_price,       // <--- [新增] 加上这一行
+            soldQuantity: it.sold_quantity  // <--- [新增] 加上这一行
           }));
           setCollection(mappedItems.length > 0 ? mappedItems : INITIAL_COLLECTION);
         }
