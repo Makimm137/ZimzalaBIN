@@ -55,7 +55,8 @@ const App: React.FC = () => {
             ...it,
             imageUrl: it.image_url,
             isPinned: it.is_pinned,
-            isReminderEnabled: it.is_reminder_enabled
+            isReminderEnabled: it.is_reminder_enabled,
+            purchaseDate: it.purchase_date
           }));
           setCollection(mappedItems.length > 0 ? mappedItems : INITIAL_COLLECTION);
         }
