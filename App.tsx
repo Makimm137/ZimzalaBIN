@@ -58,7 +58,9 @@ const App: React.FC = () => {
             isReminderEnabled: it.is_reminder_enabled,
             purchaseDate: it.purchase_date,
             soldPrice: it.sold_price,       // <--- [新增] 加上这一行
-            soldQuantity: it.sold_quantity  // <--- [新增] 加上这一行
+            soldQuantity: it.sold_quantity,  // <--- [新增] 加上这一行
+            sourceType: it.source_type,
+            paymentStatus: it.payment_status
           }));
           setCollection(mappedItems.length > 0 ? mappedItems : INITIAL_COLLECTION);
         }
