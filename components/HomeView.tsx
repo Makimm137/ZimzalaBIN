@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { CollectionItem, ItemStatus, ItemCategory, SourceType } from '../types';
+import { CollectionItem, ItemStatus, ItemCategory, SourceType, PaymentStatus } from '../types';
 
 interface HomeViewProps {
   items: CollectionItem[];
@@ -16,12 +16,13 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [showSideDrawer, setShowSideDrawer] = useState(false);
   const [showRemindersDrawer, setShowRemindersDrawer] = useState(false);
-  const [filterCategory, setFilterCategory] = useState<'分类' | 'IP' | '角色' | '类型'>('分类');
+  const [filterCategory, setFilterCategory] = useState<'分类' | 'IP' | '角色' | '类型' | '状态'>('分类');
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string[]>>({
     '分类': [],
     'IP': [],
     '角色': [],
-    '类型': []
+    '类型': [],
+    '状态': []
   });
 
   const allIps = useMemo(() => Array.from(new Set(items.map(i => i.ip))), [items]);
@@ -38,8 +39,9 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
       const matchesIp = selectedFilters['IP'].length === 0 || selectedFilters['IP'].includes(item.ip);
       const matchesChar = selectedFilters['角色'].length === 0 || selectedFilters['角色'].includes(item.character);
       const matchesType = selectedFilters['类型'].length === 0 || selectedFilters['类型'].includes(item.category);
+      const matchesPaymentStatus = selectedFilters['状态'].length === 0 || selectedFilters['状态'].includes(item.paymentStatus || '');
 
-      return matchesStatus && matchesSearch && matchesSource && matchesIp && matchesChar && matchesType;
+      return matchesStatus && matchesSearch && matchesSource && matchesIp && matchesChar && matchesType && matchesPaymentStatus;
     });
   }, [items, activeStatus, searchQuery, selectedFilters]);
 
@@ -135,7 +137,7 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
         </div>
 
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-          {['全部',ItemStatus.OWNED, ItemStatus.TRANSIT,ItemStatus.RESERVED,ItemStatus.SOLD, ItemStatus.WISHLIST].map(status => (
+          {['全部', ItemStatus.OWNED, ItemStatus.TRANSIT,ItemStatus.RESERVED,ItemStatus.SOLD, ItemStatus.WISHLIST].map(status => (
             <button
               key={status}
               onClick={() => setActiveStatus(status)}
@@ -313,7 +315,7 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
           
           <div className="flex-1 flex overflow-hidden">
             <div className="w-24 bg-slate-50 border-r border-slate-100 flex flex-col">
-              {(['分类', 'IP', '角色', '类型'] as const).map(cat => (
+              {(['分类', 'IP', '角色', '类型', '状态'] as const).map(cat => (
                 <button 
                   key={cat}
                   onClick={() => setFilterCategory(cat)}
@@ -329,6 +331,7 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
               <div className="grid grid-cols-2 gap-2">
                 {(filterCategory === '分类' ? Object.values(SourceType) : 
                   filterCategory === '类型' ? Object.values(ItemCategory) :
+                  filterCategory === '状态' ? Object.values(PaymentStatus) : 
                   filterCategory === 'IP' ? allIps : allCharacters).map((item) => (
                   <button
                     key={item}
