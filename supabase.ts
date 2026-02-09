@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // 注意：在实际部署时，请替换为您的实际 Supabase 项目 URL 和 Anon Key
 // 此处假设通过环境变量提供，或者作为占位符
-const supabaseUrl = 'https://your-project-url.supabase.co';
-const supabaseAnonKey = 'your-anon-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

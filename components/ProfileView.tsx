@@ -9,9 +9,10 @@ interface ProfileViewProps {
   onNavigateToHome: () => void;
   onNavigateToIPList: () => void;
   onUpdateCollection?: (items: CollectionItem[]) => void;
+  onSave?: (item: CollectionItem) => void; // <--- [新增] 添加这一行
 }
 
-const ProfileView: React.FC<ProfileViewProps> = ({ items, profile, onUpdateProfile, onNavigateToHome, onNavigateToIPList, onUpdateCollection }) => {
+const ProfileView: React.FC<ProfileViewProps> = ({ items, profile, onUpdateProfile, onNavigateToHome, onNavigateToIPList, onUpdateCollection, onSave }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localName, setLocalName] = useState(profile.name);
   const [localBio, setLocalBio] = useState(profile.bio);
@@ -56,7 +57,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ items, profile, onUpdateProfi
   };
 
   const handleDownloadTemplate = () => {
-    const headers = ['名称', 'IP', '角色', '价格', '数量', '状态', '分类', '购入日期', '备注'];
+    const headers = ['名称', '来源类型','IP', '角色', '分类', '购入单价', '购入数量', '当前状态', '付款状态', '定金金额', '尾款金额', '购入日期', '卖出单价', '卖出数量', '备注', '图片链接'];
     const csvContent = '\ufeff' + headers.join(',');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -71,17 +72,24 @@ const ProfileView: React.FC<ProfileViewProps> = ({ items, profile, onUpdateProfi
       alert('当前没有可导出的数据');
       return;
     }
-    const headers = ['名称', 'IP', '角色', '价格', '数量', '状态', '分类', '购入日期', '备注'];
+    const headers = [ '名称', '来源类型','IP', '角色', '分类', '购入单价', '购入数量', '当前状态', '付款状态', '定金金额', '尾款金额', '购入日期', '卖出单价', '卖出数量', '备注', '图片链接'];
     const rows = items.map(item => [
-      item.name,
-      item.ip,
-      item.character,
-      item.price,
-      item.quantity,
-      item.status,
-      item.category,
-      item.purchaseDate || '',
-      item.notes || ''
+      item.name,                // 名称
+      item.sourceType,          // 来源类型
+      item.ip,                  // IP
+      item.character,           // 角色
+      item.category,            // 分类
+      item.price,               // 购入单价
+      item.quantity,            // 购入数量
+      item.status,              // 当前状态
+      item.paymentStatus,       // 付款状态
+      item.depositAmount,       // 定金金额
+      item.finalPaymentAmount,  // 尾款金额
+      item.purchaseDate,        // 购入日期
+      item.soldPrice,           // 卖出单价
+      item.soldQuantity,        // 卖出数量
+      item.notes,               // 备注
+      item.imageUrl             // 图片链接
     ]);
 
     const csvContent = [
@@ -102,54 +110,84 @@ const ProfileView: React.FC<ProfileViewProps> = ({ items, profile, onUpdateProfi
     const lines = text.split('\n').filter(line => line.trim());
     if (lines.length <= 1) return [];
     
-    // Simple CSV parser that handles basic quoted strings
-    const rows = lines.slice(1).map(line => {
-      const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-      return matches ? matches.map(m => m.replace(/^"|"$/g, '')) : [];
-    });
 
-    return rows.map(row => ({
-      id: Math.random().toString(36).substr(2, 9),
-      name: row[0] || '未命名藏品',
-      ip: row[1] || '其他',
-      character: row[2] || '全员',
-      price: parseFloat(row[3]) || 0,
-      quantity: parseInt(row[4]) || 1,
-      status: (row[5] as ItemStatus) || ItemStatus.OWNED,
-      category: (row[6] as ItemCategory) || ItemCategory.OTHER,
-      purchaseDate: row[7] || new Date().toISOString().split('T')[0],
-      notes: row[8] || '',
-      imageUrl: `https://picsum.photos/seed/${Math.random()}/400/400`, // Default placeholder
-      paymentStatus: PaymentStatus.FULL,
-    }));
+    // [核心升级] 使用一个更健壮的 CSV 行解析函数
+    const parseCsvRow = (row: string): string[] => {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        if (char === '"') {
+          if (inQuotes && row[i + 1] === '"') {
+            // 处理双引号转义 ("")
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current);
+      return result;
+    };
+
+    const rows = lines.slice(1).map(line => parseCsvRow(line));
+
+
+    // [核心修改] 更新解析逻辑，根据你的新列顺序来创建对象
+    return rows.map(row => {
+      const newItem: Partial<CollectionItem> = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: row[0] || '未命名',                  // 名称
+        sourceType: (row[15] as SourceType) || SourceType.OTHER,      // 来源类型
+        ip: row[1] || '其他',                        // IP
+        character: row[2] || '其他',                 // 角色
+        category: (row[3] as ItemCategory) || ItemCategory.OTHER, // 分类
+        price: parseFloat(row[4]) || 0,                 // 购入单价
+        quantity: parseInt(row[5]) || 1,                // 购入数量
+        status: (row[6] as ItemStatus) || ItemStatus.OWNED,       // 当前状态
+        paymentStatus: (row[7] as PaymentStatus) || PaymentStatus.FULL, // 付款状态
+        depositAmount: parseFloat(row[8]) || undefined,     // 定金金额
+        finalPaymentAmount: parseFloat(row[9]) || undefined, // 尾款金额
+        purchaseDate: row[10] || new Date().toISOString().split('T')[0], // 购入日期
+        soldPrice: parseFloat(row[11]) || undefined,      // 卖出单价
+        soldQuantity: parseInt(row[12]) || undefined,       // 卖出数量
+        notes: row[13] || '',                        // 备注
+        imageUrl: row[14] || `https://pics_seed/${Math.random()}/400/400`, // 图片链接
+      };
+      return newItem;
+    });
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && onUpdateCollection) {
+    // [修改] 检查 onSave 是否存在，而不是 onUpdateCollection
+    if (file && onSave) {
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
           const content = event.target?.result as string;
-          let importedData: CollectionItem[] = [];
-
-          if (file.name.endsWith('.json')) {
-            const raw = JSON.parse(content);
-            importedData = Array.isArray(raw) ? raw : [raw];
-          } else {
-            // Assume CSV/Excel export
-            importedData = parseCSV(content) as CollectionItem[];
-          }
+          // 解析 CSV 的逻辑不变
+          const importedData = parseCSV(content) as CollectionItem[];
 
           if (importedData.length > 0) {
-            // Merge with existing or overwrite as per user request implicit in "recorded into collection"
-            // We'll append for safety but unique IDs are handled by parseCSV
-            onUpdateCollection([...items, ...importedData]);
+            // [核心修改] 循环调用 onSave，一条一条地添加和同步
+            importedData.forEach(item => {
+              onSave(item);
+            });
+            
             setImportSuccess(true);
             setTimeout(() => {
               setImportSuccess(false);
               setShowDataDrawer(false);
             }, 1500);
+
           } else {
             alert('未能识别有效的数据内容，请检查文件格式。');
           }
@@ -161,6 +199,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ items, profile, onUpdateProfi
       reader.readAsText(file);
     }
   };
+  
 
   const clearCollection = () => {
     if (confirm('确定要清空所有收藏数据吗？') && onUpdateCollection) {
