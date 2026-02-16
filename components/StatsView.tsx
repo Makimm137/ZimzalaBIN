@@ -1,11 +1,11 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { CollectionItem, ItemStatus } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, Label } from 'recharts';
+import { supabase } from '../supabase'; // [新增]
 
 interface StatsViewProps {
-  items: CollectionItem[];
 }
+
 
 const COLORS = ['#FF6B9D', '#7CACEF', '#FFD166', '#A5B4FC', '#D988B9', '#B8E4C9', '#FFD6A5'];
 const IP_COLORS = ['#FF6B9D', '#7CACEF', '#A5B4FC', '#F472B6', '#34D399'];
@@ -18,10 +18,32 @@ function getWeekNumber(d: Date): number {
   return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
-const StatsView: React.FC<StatsViewProps> = ({ items }) => {
+const StatsView: React.FC<StatsViewProps> = () => {
+  const [statsData, setStatsData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [catViewBy, setCatViewBy] = useState<'count' | 'amount'>('count');
   const [ipViewBy, setIpViewBy] = useState<'count' | 'amount'>('count');
   const [period, setPeriod] = useState<'week' | 'month' | 'all'>('all');
+
+
+    // [新增] 添加 useEffect 来获取数据
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.rpc('get_all_stats');
+        if (error) throw error;
+        setStatsData(data);
+      } catch (err) {
+        console.error("Failed to fetch stats:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+
 
   // 时间分布相关的状态
   const [distPeriod, setDistPeriod] = useState<'周' | '月' | '年'>('年');
@@ -30,45 +52,34 @@ const StatsView: React.FC<StatsViewProps> = ({ items }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // 1. 顶部概览数据过滤 (本周/本月/全部)
-  const overviewStats = useMemo(() => {
-    const now = new Date();
-    const filteredItems = items.filter(item => {
-      if (period === 'all') return true;
-      if (!item.purchaseDate) return false;
-      const d = new Date(item.purchaseDate);
-      
-      if (period === 'month') {
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-      }
-      
-      if (period === 'week') {
-        const start = new Date(now);
-        const day = now.getDay();
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-        start.setDate(diff);
-        start.setHours(0, 0, 0, 0);
-        return d >= start && d <= now;
-      }
-      return true;
-    });
+const overviewStats = useMemo(() => {
+  if (!statsData) return { total: 0, sold: 0, net: 0 };
+  
+  let data;
+  if (period === 'week') data = statsData.overview_week;
+  else if (period === 'month') data = statsData.overview_month;
+  else data = statsData.overview_all;
+  
+  const total = data?.total || 0;
+  const sold = data?.sold || 0;
+  return { total, sold, net: total - sold };
+}, [statsData, period]);
 
-    const total = filteredItems.reduce((sum, item) => sum + (Number(item.price) || 0) * (item.quantity || 1), 0);
-    const sold = filteredItems.filter(item => item.status === ItemStatus.SOLD).reduce((sum, item) => sum + (Number(item.soldPrice) || 0) * (item.soldQuantity || item.quantity || 1), 0);
-    const net = total - sold;
 
-    return { total, sold, net };
-  }, [items, period]);
 
   // 2. 动态生成时间范围列表 (从最早记录到今天)
+  const allTimeData = useMemo(() => statsData?.time_dist || [], [statsData]);
+
   const timeRanges = useMemo(() => {
-    const dates = items.filter(i => i.purchaseDate).map(i => new Date(i.purchaseDate!));
+    if (!allTimeData || allTimeData.length === 0) return [];
+    
+    const dates = allTimeData.map(i => new Date(i.date));
     const now = new Date();
-    const earliest = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : new Date(now.getFullYear() - 1, 0, 1);
+    const earliest = new Date(Math.min(...dates.map(d => d.getTime())));
     
     const ranges: string[] = [];
     const current = new Date(earliest);
-    const end = new Date(now);
-    end.setFullYear(end.getFullYear() + 1);
+    const end = new Date(now.getFullYear() + 1, 11, 31);
 
     if (distPeriod === '周') {
       while (current <= end) {
@@ -92,7 +103,7 @@ const StatsView: React.FC<StatsViewProps> = ({ items }) => {
       }
     }
     return ranges;
-  }, [distPeriod, items]);
+  }, [distPeriod, allTimeData]);
 
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>('');
 
@@ -125,11 +136,13 @@ const StatsView: React.FC<StatsViewProps> = ({ items }) => {
     }
   }, [selectedTimeRange, timeRanges]);
 
+
+
   // 3. 根据选中的范围过滤并聚合图表数据
   const distData = useMemo(() => {
-    const filtered = items.filter(i => {
-      if (!i.purchaseDate) return false;
-      const d = new Date(i.purchaseDate);
+    const filtered = allTimeData.filter(i => {
+      if (!i.date) return false;
+      const d = new Date(i.date);
       if (distPeriod === '周') {
         return `${d.getFullYear()}-${getWeekNumber(d).toString().padStart(2, '0')}周` === selectedTimeRange;
       } else if (distPeriod === '月') {
@@ -139,73 +152,83 @@ const StatsView: React.FC<StatsViewProps> = ({ items }) => {
       }
     });
 
-    let chartPoints: { name: string, value: number, originalItems: CollectionItem[] }[] = [];
+    let chartPoints: { name: string, value: number, originalItems: any[] }[] = [];
+    
     if (distPeriod === '周') {
       const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
       chartPoints = days.map((day, idx) => {
         const dayItems = filtered.filter(i => {
-          const d = new Date(i.purchaseDate!);
-          const dayIdx = (d.getDay() + 6) % 7; 
+          const d = new Date(i.date);
+          const dayIdx = (d.getDay() + 6) % 7;
           return dayIdx === idx;
         });
-        return { name: day, value: dayItems.reduce((s, i) => s + i.price * i.quantity, 0), originalItems: dayItems };
+        return { name: day, value: dayItems.reduce((s, i) => s + Number(i.value), 0), originalItems: dayItems };
       });
     } else if (distPeriod === '月') {
-      chartPoints = Array.from({ length: 30 }, (_, i) => {
+      const [year, month] = selectedTimeRange.replace('月', '').split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      chartPoints = Array.from({ length: daysInMonth }, (_, i) => {
         const day = i + 1;
-        const dayItems = filtered.filter(it => new Date(it.purchaseDate!).getDate() === day);
-        return { name: day.toString().padStart(2, '0'), value: dayItems.reduce((s, i) => s + i.price * i.quantity, 0), originalItems: dayItems };
+        const dayItems = filtered.filter(it => new Date(it.date).getDate() === day);
+        return { name: day.toString().padStart(2, '0'), value: dayItems.reduce((s, i) => s + Number(i.value), 0), originalItems: dayItems };
       });
     } else {
       chartPoints = Array.from({ length: 12 }, (_, i) => {
-        const monthItems = filtered.filter(it => new Date(it.purchaseDate!).getMonth() === i);
-        return { name: `${i + 1}月`, value: monthItems.reduce((s, i) => s + i.price * i.quantity, 0), originalItems: monthItems };
+        const monthItems = filtered.filter(it => new Date(it.date).getMonth() === i);
+        return { name: `${i + 1}月`, value: monthItems.reduce((s, i) => s + Number(i.value), 0), originalItems: monthItems };
       });
     }
 
-    const total = filtered.reduce((s, i) => s + i.price * i.quantity, 0);
-    const avg = chartPoints.length > 0 ? total / chartPoints.length : 0;
+    const total = chartPoints.reduce((s, p) => s + p.value, 0);
+    const nonEmptyPoints = chartPoints.filter(p => p.value > 0);
+    const avg = nonEmptyPoints.length > 0 ? total / nonEmptyPoints.length : 0;
     const maxVal = Math.max(...chartPoints.map(p => p.value), 0);
 
     const rankingMap: Record<string, number> = {};
     filtered.forEach(i => {
       const key = distRankBy === 'category' ? i.category : (i.ip || '其他');
-      rankingMap[key] = (rankingMap[key] || 0) + i.price * i.quantity;
+      rankingMap[key] = (rankingMap[key] || 0) + Number(i.value);
     });
     const ranking = Object.entries(rankingMap)
       .map(([name, value]) => ({ name, value, percent: total > 0 ? (value / total * 100).toFixed(1) : '0' }))
       .sort((a, b) => b.value - a.value);
 
     return { chartPoints, total, avg, maxVal, ranking };
-  }, [items, distPeriod, selectedTimeRange, distRankBy]);
+  }, [allTimeData, distPeriod, selectedTimeRange, distRankBy]);
 
-  const categoryData = useMemo(() => {
-    const currentCategories = Array.from(new Set(items.map(i => i.category)));
-    return currentCategories.map((cat) => {
-      const categoryItems = items.filter(item => item.category === cat);
-      return {
-        name: cat,
-        value: catViewBy === 'count' 
-          ? categoryItems.reduce((s, i) => s + i.quantity, 0)
-          : categoryItems.reduce((s, i) => s + (i.price * i.quantity), 0)
-      };
-    }).sort((a, b) => b.value - a.value);
-  }, [items, catViewBy]);
 
-  const ipStats = useMemo(() => {
-    const allIps = Array.from(new Set(items.map(i => i.ip))).filter(Boolean);
-    return allIps.map(ip => {
-      const ipItems = items.filter(i => i.ip === ip);
-      return {
-        name: ip,
-        value: ipViewBy === 'count'
-          ? ipItems.reduce((s, i) => s + i.quantity, 0)
-          : ipItems.reduce((s, i) => s + (i.price * i.quantity), 0)
-      };
-    }).sort((a, b) => b.value - a.value);
-  }, [items, ipViewBy]);
+
+
+
+const categoryData = useMemo(() => {
+  if (!statsData) return []; // 使用新的 statsData
+  const data = catViewBy === 'count' ? statsData.category_dist_count : statsData.category_dist_amount;
+  return (data || []).filter(d => d.name);
+}, [statsData, catViewBy]);
+
+
+const ipStats = useMemo(() => {
+  if (!statsData) return [];
+  const data = ipViewBy === 'count' ? statsData.ip_dist_count : statsData.ip_dist_amount;
+  return data || [];
+}, [statsData, ipViewBy]);
+
+
 
   const maxIpValue = Math.max(...ipStats.map(s => s.value), 1);
+
+
+  // [新增] 在这里添加 loading UI
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] gap-4">
+        <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+        <p className="text-slate-400 text-xs font-bold animate-pulse">正在计算统计数据...</p>
+      </div>
+    );
+  }
+    
 
   return (
     <div className="animate-in fade-in duration-500 bg-[#F8F9FB] min-h-screen">
@@ -456,7 +479,7 @@ const StatsView: React.FC<StatsViewProps> = ({ items }) => {
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
                 <span className="text-[10px] text-slate-400 font-bold mb-1">{catViewBy === 'count' ? '总件数' : '总金额'}</span>
-                <span className="text-xl font-bold text-slate-900 leading-none">{catViewBy === 'count' ? items.reduce((s, i) => s + i.quantity, 0) : `¥${overviewStats.total.toLocaleString()}`}</span>
+                <span className="text-xl font-bold text-slate-900 leading-none">{catViewBy === 'count'  ? (statsData?.category_dist_count || []).reduce((s, i) => s + i.value, 0) : `¥${overviewStats.total.toLocaleString()}`}</span>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 w-full">

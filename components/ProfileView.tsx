@@ -145,21 +145,21 @@ const ProfileView: React.FC<ProfileViewProps> = ({ items, profile, onUpdateProfi
       const newItem: Partial<CollectionItem> = {
         id: Math.random().toString(36).substr(2, 9),
         name: row[0] || '未命名',                  // 名称
-        sourceType: (row[15] as SourceType) || SourceType.OTHER,      // 来源类型
-        ip: row[1] || '其他',                        // IP
-        character: row[2] || '其他',                 // 角色
-        category: (row[3] as ItemCategory) || ItemCategory.OTHER, // 分类
-        price: parseFloat(row[4]) || 0,                 // 购入单价
-        quantity: parseInt(row[5]) || 1,                // 购入数量
-        status: (row[6] as ItemStatus) || ItemStatus.OWNED,       // 当前状态
-        paymentStatus: (row[7] as PaymentStatus) || PaymentStatus.FULL, // 付款状态
-        depositAmount: parseFloat(row[8]) || undefined,     // 定金金额
-        finalPaymentAmount: parseFloat(row[9]) || undefined, // 尾款金额
-        purchaseDate: row[10] || new Date().toISOString().split('T')[0], // 购入日期
-        soldPrice: parseFloat(row[11]) || undefined,      // 卖出单价
-        soldQuantity: parseInt(row[12]) || undefined,       // 卖出数量
-        notes: row[13] || '',                        // 备注
-        imageUrl: row[14] || `https://pics_seed/${Math.random()}/400/400`, // 图片链接
+        sourceType: (row[1] as SourceType) || SourceType.OTHER,      // 来源类型
+        ip: row[2] || '其他',                        // IP
+        character: row[3] || '其他',                 // 角色
+        category: (row[4] as ItemCategory) || ItemCategory.OTHER, // 分类
+        price: parseFloat(row[5]) || 0,                 // 购入单价
+        quantity: parseInt(row[6]) || 1,                // 购入数量
+        status: (row[7] as ItemStatus) || ItemStatus.OWNED,       // 当前状态
+        paymentStatus: (row[8] as PaymentStatus) || PaymentStatus.FULL, // 付款状态
+        depositAmount: parseFloat(row[9]) || undefined,     // 定金金额
+        finalPaymentAmount: parseFloat(row[10]) || undefined, // 尾款金额
+        purchaseDate: row[11] || new Date().toISOString().split('T')[0], // 购入日期
+        soldPrice: parseFloat(row[12]) || undefined,      // 卖出单价
+        soldQuantity: parseInt(row[13]) || undefined,       // 卖出数量
+        notes: row[14] || '',                        // 备注
+        imageUrl: row[15] || `https://pics_seed/${Math.random()}/400/400`, // 图片链接
       };
       return newItem;
     });

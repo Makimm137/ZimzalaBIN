@@ -4,13 +4,17 @@ import { CollectionItem, ItemStatus, ItemCategory, SourceType } from '../types';
 
 interface HomeViewProps {
   items: CollectionItem[];
+  totalCount: number;
+  allIps: string[]; // <--- [新增]
+  allCharacters: string[]; // <--- [新增]
   profile: { name: string; bio: string; avatar: string };
   onEdit: (item: CollectionItem) => void;
   onToggleReminder: (id: string) => void;
   onNavigateToProfile: () => void;
+  onSignOut?: () => void; // <--- [新增] 加上这一行
 }
 
-const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleReminder, onNavigateToProfile }) => {
+const HomeView: React.FC<HomeViewProps> = ({ items, totalCount, allIps, allCharacters, profile, onEdit, onToggleReminder, onNavigateToProfile, onSignOut }) => {
   const [activeStatus, setActiveStatus] = useState<string>('全部');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
@@ -24,8 +28,7 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
     '类型': []
   });
 
-  const allIps = useMemo(() => Array.from(new Set(items.map(i => i.ip))), [items]);
-  const allCharacters = useMemo(() => Array.from(new Set(items.map(i => i.character))), [items]);
+
 
   const filteredItems = useMemo(() => {
     return items.filter(item => {
@@ -95,7 +98,7 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight text-slate-900">我的收藏</h1>
-                <span className="text-[11px] text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-full">{items.length} 件藏品</span>
+                <span className="text-[11px] text-primary font-bold bg-primary/5 px-2 py-0.5 rounded-full">{totalCount} 件藏品</span>
               </div>
             </div>
           </div>
@@ -135,7 +138,7 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
         </div>
 
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2">
-          {['全部', ItemStatus.OWNED, ItemStatus.TRANSIT, ItemStatus.WISHLIST].map(status => (
+          {['全部', ItemStatus.OWNED, ItemStatus.TRANSIT,ItemStatus.RESERVED,ItemStatus.SOLD, ItemStatus.WISHLIST].map(status => (
             <button
               key={status}
               onClick={() => setActiveStatus(status)}
@@ -231,7 +234,10 @@ const HomeView: React.FC<HomeViewProps> = ({ items, profile, onEdit, onToggleRem
           </div>
 
           <div className="p-6 border-t border-slate-50 bg-white shrink-0">
-            <button className="flex items-center gap-3 w-full py-4 px-5 text-slate-500 hover:text-red-500 font-bold text-sm transition-all rounded-2xl hover:bg-red-50 active:scale-95">
+            <button 
+              onClick={onSignOut} // <--- onClick 现在在正确的 button 上
+              className="flex items-center gap-3 w-full py-4 px-5 text-slate-500 hover:text-red-500 font-bold text-sm transition-all rounded-2xl hover:bg-red-50 active:scale-95"
+            >
               <span className="material-symbols-outlined text-lg">logout</span>
               退出当前账号
             </button>

@@ -18,7 +18,7 @@ const IPListView: React.FC<IPListViewProps> = ({ items, onBack, onEdit, onToggle
     return ['全部', ...ips];
   }, [items]);
 
-  const statuses = ['全部', '已入手', '在途', '愿望单', '预定中'];
+  const statuses = ['全部', '已入手', '在途', '预定中','卖出','愿望单'];
 
   const filteredItems = useMemo(() => {
     return items
